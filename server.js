@@ -1,28 +1,69 @@
-var app = require('express')();
+const express = require('express');
+var mongoose    = require('mongoose');
+var moment = require('moment');
+var ejs  = require('ejs');
+const app = new express();
+
+var db = mongoose.connection;
+db.on('error', console.error);
+db.once('open', function(){
+    console.log("Connected to mongod server");
+});
+mongoose.connect('mongodb://localhost/chat');
+var Chat = require('./models/chat');
+
+
 var server = require('http').createServer(app);
-// http server를 socket.io server로 upgrade한다
 var io = require('socket.io')(server);
 
-// localhost:3000으로 서버에 접속하면 클라이언트로 index.html을 전송한다
-app.get('/', function(req, res) {
-    res.sendFile(__dirname + '/index-room.html');
+
+app.set('view engine', 'ejs');
+app.engine('html', ejs.renderFile);
+
+
+app.get('/',function(req,res){
+
+    Chat.find(function(err, data){
+        if(err) return res.status(500).send({error: 'database failure'});
+        res.render('index', {
+            data: data,
+            moment: moment
+        })
+    }).limit(20).sort( { "_id": -1 } );
 });
 
-// namespace /chat에 접속한다.
-var chat = io.of('/chat').on('connection', function(socket) {
-    socket.on('chat message', function(data){
-        console.log('message from client: ', data);
 
-        var name = socket.name = data.name;
-        var room = socket.room = data.room;
+var chat = io.on('connection', function(socket) {
+    var room = "chat";
+    socket.join(room);
 
-        // room에 join한다
-        socket.join(room);
-        // room에 join되어 있는 클라이언트에게 메시지를 전송한다
-        chat.to(room).emit('chat message', data.msg);
+    socket.on('message', function(data){
+
+        var chatTable = new Chat();
+        var createdAt = new Date();
+        chatTable.room = room;
+        chatTable.message = data.msg;
+        chatTable.createAt = createdAt;
+
+        chatTable.save(function(err){
+            if(err){
+                console.error(err);
+            }
+            else{
+
+                chat.to(room).emit('message', {msg: data.msg, createdAt: createdAt});
+                // chat.emit('message', {msg: data.msg, createdAt: createdAt});
+            }
+        });
+
     });
 });
+
 
 server.listen(3000, function() {
     console.log('Socket IO server listening on port 3000');
 });
+
+
+
+
