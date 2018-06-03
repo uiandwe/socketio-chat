@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>채팅이다</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container">
+    <h3>채팅이다</h3>
+
+
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label for="msg" class="col-sm-2 control-label">Message</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="msg" placeholder="Message">
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+                <button type="submit" class="btn btn-default">Send</button>
+            </div>
+        </div>
+    </form>
+    <ul id="chat">
+
+        <% for(var i=0; i<data.length; i++){ %>
+        <li>
+            <%= data[i].message  %> <%= moment(data[i].createAt).format( 'YYYY-MM-DD hh:mm:ss') %>
+        </li>
+        <% } %>
+    </ul>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+<script src="https://momentjs.com/downloads/moment.js"></script>
+
+<script>
+    $(function() {
+        var chat = io();
+
+        $("form").submit(function(e) {
+            e.preventDefault();
+            chat.emit("message", {
+                msg: $("#msg").val()
+            });
+        });
+
+        chat.on("message", function(data) {
+            $("#msg").val("");
+            $("#chat").prepend($('<li>').text(data.msg+" "+ moment(data.createdAt).format( 'YYYY-MM-DD hh:mm:ss')));
+            if($("#chat li").length > 20){
+                $('#chat li').last().remove();
+            }
+        });
+    });
+</script>
+</body>
+</html>
